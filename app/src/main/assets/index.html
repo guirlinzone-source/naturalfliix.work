@@ -83,18 +83,9 @@ var TIERS=[10,20,40,60,80,100], MAXP=10, SINAL=0.30, LS="tabela-precos-v1";
 var JSPDF_URL="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
 var AT_URL="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js";
 
-var PASS_HASH="9c7e30144d250f11cb82f378197700afdfd0a11eefb016e2e696927cf0cd3e5f";
-function sha256(str){var b=unescape(encodeURIComponent(str)),K=[],H=[],i,j,w=[],l=b.length*8,isP=function(n){for(var f=2;f*f<=n;f++)if(n%f===0)return 0;return 1;},fr=function(x){return((x-Math.floor(x))*4294967296)|0;};
-  for(var n=2,c=0;c<64;n++)if(isP(n)){if(c<8)H[c]=fr(Math.pow(n,1/2));K[c++]=fr(Math.pow(n,1/3));}
-  b+="\x80";while(b.length%64!==56)b+="\x00";var words=[];for(i=0;i<b.length;i++)words[i>>2]|=b.charCodeAt(i)<<((3-i%4)*8);words.push(0,l);
-  var rr=function(v,a){return(v>>>a)|(v<<(32-a));};
-  for(j=0;j<words.length;j+=16){var a=H.slice(0);for(i=0;i<64;i++){if(i<16)w[i]=words[j+i]|0;else{var x=w[i-15],y=w[i-2];w[i]=(w[i-16]+(rr(x,7)^rr(x,18)^(x>>>3))+w[i-7]+(rr(y,17)^rr(y,19)^(y>>>10)))|0;}
-    var t1=a[7]+(rr(a[4],6)^rr(a[4],11)^rr(a[4],25))+((a[4]&a[5])^(~a[4]&a[6]))+K[i]+w[i],t2=(rr(a[0],2)^rr(a[0],13)^rr(a[0],22))+((a[0]&a[1])^(a[0]&a[2])^(a[1]&a[2]));
-    a=[(t1+t2)|0].concat(a);a[4]=(a[4]+t1)|0;a.length=8;}for(i=0;i<8;i++)H[i]=(H[i]+a[i])|0;}
-  var o="";for(i=0;i<8;i++)o+=("00000000"+(H[i]>>>0).toString(16)).slice(-8);return o;}
 function today(){var d=new Date();return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2);}
 function newProduct(){return {name:"",code:"",price:"",disc:["","","","","",""]};}
-function blank(){return {company:{name:"",cnpj:"",phone:"",email:"",address:"",logo:""},tableNote:"",products:[newProduct()],savedAt:0,locked:false};}
+function blank(){return {company:{name:"",cnpj:"",phone:"",email:"",address:"",logo:""},tableNote:"",products:[newProduct()],savedAt:0};}
 function newOrder(){return {numero:"",data:today(),fantasia:"",razao:"",cnpj:"",endereco:"",cidade:"",telefone:"",obs:"",items:[{p:"",t:0}]};}
 
 function num(s){if(typeof s==="number")return s;s=String(s==null?"":s).trim().replace(/[^\d,.\-]/g,"");if(s.indexOf(",")>=0)s=s.replace(/\./g,"").replace(",",".");var n=parseFloat(s);return isFinite(n)?n:0;}
@@ -115,6 +106,7 @@ try{var d=JSON.parse(localStorage.getItem(LS)||"null");
 var LSO=LS+"-pedidos",ORD=[];
 try{ORD=JSON.parse(localStorage.getItem(LSO)||"[]")||[];}catch(e){ORD=[];}
 function persistOrders(){try{localStorage.setItem(LSO,JSON.stringify(ORD));return true;}catch(e){return false;}}
+if(S.locked)delete S.locked;
 function persist(){try{localStorage.setItem(LS,JSON.stringify({cfg:S,order:O}));}catch(e){}}
 
 /* ---------- capacidades (quando publicado no Claude) ---------- */
@@ -144,16 +136,12 @@ function shell(){
 function setTab(t){tab=t;root.querySelectorAll("nav.tabs button").forEach(function(b){b.classList.toggle("on",b.dataset.tab===t);});root.querySelectorAll("main section").forEach(function(s){s.classList.toggle("on",s.id==="s-"+t);});if(t==="tabela")renderTabela();if(t==="pedido")renderPedido();window.scrollTo(0,0);}
 function renderAll(){renderHeader();renderEmpresa();renderProdutos();renderTabela();renderPedido();}
 
-function renderHeader(){var c=S.company;document.getElementById("hdr").innerHTML=(c.logo?'<img src="'+c.logo+'" alt="">':'')+'<div><h1>'+esc(c.name||"Tabela de Preços")+'</h1><small>Tabela de preços e pedidos'+(S.locked?' · 🔒 travado':'')+'</small></div>';}
+function renderHeader(){var c=S.company;document.getElementById("hdr").innerHTML=(c.logo?'<img src="'+c.logo+'" alt="">':'')+'<div><h1>'+esc(c.name||"Tabela de Preços")+'</h1><small>Tabela de preços e pedidos</small></div>';}
 
 function renderSaveBar(){var el=document.getElementById("savebar");if(!el)return;
   el.innerHTML='<button class="btn acc" data-act="gravar">💾 Gravar dados do app</button><span class="muted">'+(ART?'Grava empresa, produtos e descontos no próprio app (vale em qualquer aparelho).':(AB?'Os dados ficam guardados neste celular. Faça backup de vez em quando.':'Os dados ficam guardados neste navegador.'))+'</span>';}
 
-function lockCard(){return '<div class="card" style="text-align:center"><div style="font-size:42px">🔒</div><h2>App travado</h2><p class="muted">A tabela de preços está salva e travada. Digite a senha para liberar a edição.</p>'+
-  '<input type="password" class="pw" placeholder="Senha" autocomplete="off" style="text-align:center;max-width:280px;margin:6px auto;display:block">'+
-  '<button class="btn acc" data-act="unlock" style="width:100%;max-width:280px;margin-top:8px">Desbloquear</button><p class="muted" style="margin-top:12px">A aba <b>Pedido</b> continua liberada para tirar pedidos.</p></div>';}
 function renderEmpresa(){var c=S.company;
-  if(S.locked){document.getElementById("s-empresa").innerHTML=lockCard();return;}
   document.getElementById("s-empresa").innerHTML=
   '<div class="card"><h2>Dados da sua empresa</h2><p class="muted" style="margin:0">Aparecem no cabeçalho da tabela de preços e do pedido.</p>'+
   '<label>Nome da empresa</label><input data-k="c.name" value="'+esc(c.name)+'" placeholder="Ex.: Distribuidora Exemplo">'+
@@ -174,7 +162,6 @@ function tierRows(p,i){
   TIERS.map(function(q,t){return '<div class="tier"><b>'+q+' un.</b><div class="pctwrap"><input data-k="p.disc" data-i="'+i+'" data-t="'+t+'" value="'+esc(p.disc[t])+'" inputmode="decimal" placeholder="0"></div><div class="pv" id="pv-'+i+'-'+t+'"></div></div>';}).join("");
 }
 function renderProdutos(){
-  if(S.locked){document.getElementById("s-produtos").innerHTML=lockCard();return;}
   var h='<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><h2 style="margin:0">Produtos</h2><span class="muted">'+S.products.length+' de '+MAXP+' produtos · desconto em % sobre o preço base</span></div>'+
     '<button class="btn acc" data-act="addp"'+(S.products.length>=MAXP?' disabled':'')+'>+ Adicionar produto</button></div>';
   S.products.forEach(function(p,i){
@@ -188,7 +175,7 @@ function renderProdutos(){
   document.getElementById("s-produtos").innerHTML=h;
   S.products.forEach(function(p,i){updPreview(i);});
 }
-function updPreview(i){var p=S.products[i];if(S.locked)return;TIERS.forEach(function(q,t){var el=document.getElementById("pv-"+i+"-"+t);if(el){var u=unit(p,t);el.innerHTML='<b>'+brl(u)+'</b><span>total '+brl(u*q)+'</span>';}});
+function updPreview(i){var p=S.products[i];TIERS.forEach(function(q,t){var el=document.getElementById("pv-"+i+"-"+t);if(el){var u=unit(p,t);el.innerHTML='<b>'+brl(u)+'</b><span>total '+brl(u*q)+'</span>';}});
   var cards=document.querySelectorAll("#s-produtos .card h3");var hd=cards[i];if(hd)hd.innerHTML='<span class="badge">'+(i+1)+'</span>'+esc(p.name||"Novo produto");}
 
 function renderTabela(){
@@ -199,10 +186,8 @@ function renderTabela(){
     vp.forEach(function(i){var p=S.products[i];h+='<tr><td>'+esc(p.name)+(p.code?' <span class="muted">('+esc(p.code)+')</span>':'')+'</td><td>'+brl(num(p.price))+'</td>'+
       TIERS.map(function(q,t){var d=num(p.disc[t]);return '<td>'+brl(unit(p,t))+(d?'<small>-'+pc(d)+'</small>':'')+'</td>';}).join("")+'</tr>';});
     h+='</tbody></table></div>';}
-  h+='<label>Observações da tabela (validade, frete, condições...)</label><textarea data-k="s.tableNote"'+(S.locked?' readonly':'')+' placeholder="Ex.: Tabela válida até 31/12. Pedido mínimo de 10 unidades. Sinal de 30% no fechamento.">'+esc(S.tableNote||"")+'</textarea></div>'+
-  '<div class="card"><h2>Tabela de preço</h2><div class="actions"><button class="btn acc" data-act="pdf-tabela">📄 Salvar PDF</button><button class="btn" data-act="print-tabela">🖨️ Imprimir</button></div>'+(CAN_SHARE?'<button class="btn ghost" data-act="share-tabela" style="width:100%;margin-top:10px">📲 Enviar PDF (WhatsApp, e-mail…)</button>':'')+
-  (S.locked?'<div class="hint" style="margin-top:12px">🔒 Tabela salva e travada. Preços e descontos não podem ser alterados.</div><button class="btn ghost" data-act="goto-unlock" style="width:100%">Desbloquear com senha</button>'
-    :'<button class="btn" data-act="lock" style="width:100%;margin-top:10px;background:#b45309">💾 Salvar tabela e travar o app</button><p class="muted" style="margin:6px 0 0">Depois de salvar, só é possível editar empresa, produtos e descontos digitando a senha.</p>')+'</div>';
+  h+='<label>Observações da tabela (validade, frete, condições...)</label><textarea data-k="s.tableNote" placeholder="Ex.: Tabela válida até 31/12. Pedido mínimo de 10 unidades. Sinal de 30% no fechamento.">'+esc(S.tableNote||"")+'</textarea></div>'+
+  '<div class="card"><h2>Tabela de preço</h2><div class="actions"><button class="btn acc" data-act="pdf-tabela">📄 Salvar PDF</button><button class="btn" data-act="print-tabela">🖨️ Imprimir</button></div>'+(CAN_SHARE?'<button class="btn ghost" data-act="share-tabela" style="width:100%;margin-top:10px">📲 Enviar PDF (WhatsApp, e-mail…)</button>':'')+'</div>';
   var s=document.getElementById("s-tabela");
   var ta=s.querySelector("textarea");var hadFocus=ta&&document.activeElement===ta;
   if(!hadFocus)s.innerHTML=h;
@@ -273,9 +258,6 @@ root.addEventListener("click",function(e){
   else if(a==="novo"){if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Toque de novo para limpar o pedido";setTimeout(function(){if(b.isConnected){b.dataset.sure="";b.textContent="Novo pedido (limpar)";}},3000);return;}O=newOrder();persist();renderPedido();toast("Pedido limpo");}
   else if(a==="rmlogo"){S.company.logo="";persist();renderEmpresa();renderHeader();}
   else if(a==="gravar")gravar();
-  else if(a==="lock"){S.locked=true;S.savedAt=Date.now();persist();renderAll();toast("Tabela salva e app travado 🔒");if(ART)ART.publish(buildDoc(S)).catch(function(){});}
-  else if(a==="goto-unlock"){setTab("produtos");var pw=document.querySelector("main section.on .pw");if(pw)pw.focus();}
-  else if(a==="unlock")tryUnlock();
   else if(a==="save-order")saveOrder();
   else if(a==="open-order"){var r=ORD.filter(function(x){return x.id===b.dataset.id;})[0];if(r){O=Object.assign(newOrder(),JSON.parse(JSON.stringify(r.order)));delete O.snapshot;persist();renderPedido();window.scrollTo(0,0);toast("Pedido Nº "+O.numero+" aberto");}}
   else if(a==="del-order"){if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Confirmar";setTimeout(function(){if(b.isConnected){b.dataset.sure="";b.textContent="Excluir";}},3000);return;}
@@ -288,13 +270,8 @@ root.addEventListener("click",function(e){
   else if(a==="share-pedido")out("pedido",false,true);
   else if(a==="bkp-exp")exportBackup();
 });
-function tryUnlock(){var pw=document.querySelector("main section.on .pw");var v=pw?pw.value:"";
-  if(sha256(v)===PASS_HASH){S.locked=false;persist();renderAll();setTab(tab);toast("App desbloqueado ✔");}
-  else{toast("Senha incorreta");if(pw){pw.value="";pw.focus();}}}
-root.addEventListener("keydown",function(e){if(e.target.classList.contains("pw")&&e.key==="Enter"){e.preventDefault();tryUnlock();}});
 function onField(e){
   var el=e.target,k=el.dataset.k;if(!k)return;var v=el.value,i=+el.dataset.i;
-  if(S.locked&&/^(c|p|s)\./.test(k))return;
   if(k.indexOf("c.")===0){S.company[k.slice(2)]=v;if(k==="c.name")renderHeader();}
   else if(k==="s.tableNote")S.tableNote=v;
   else if(k==="p.disc"){S.products[i].disc[+el.dataset.t]=v;updPreview(i);}
@@ -332,7 +309,7 @@ function exportBackup(){var data=JSON.stringify(S,null,1),fn="backup-tabela-prec
   if(AB){AB.handleFile(btoa(unescape(encodeURIComponent(data))),fn,"application/json","save");return;}
   if(DL){DL.save({filename:fn,data:data}).then(function(){toast("Backup salvo ✔");}).catch(function(err){if(err&&err.code!=="declined")toast("Não foi possível salvar o backup.");});return;}
   localDownload(new Blob([data],{type:"application/json"}),fn);}
-function importBackup(f){if(!f||S.locked)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(!d||!Array.isArray(d.products))throw 0;
+function importBackup(f){if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(!d||!Array.isArray(d.products))throw 0;
   d.products=d.products.slice(0,MAXP).map(function(p){return {name:p.name||"",code:p.code||"",price:p.price||"",disc:(p.disc||[]).concat(["","","","","",""]).slice(0,6)};});
   d.company=Object.assign(blank().company,d.company||{});S=d;persist();renderAll();toast("Backup restaurado ✔");}catch(e){toast("Arquivo de backup inválido.");}};r.readAsText(f);}
 
