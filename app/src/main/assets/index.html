@@ -183,7 +183,7 @@ function renderTabela(){
   var h='<div class="card"><h2>Tabela de preços</h2><p class="muted" style="margin:0 0 8px">Preço por unidade em cada faixa de quantidade (com o desconto aplicado).</p>';
   if(!vp.length)h+='<div class="hint">Cadastre ao menos um produto (com nome) na aba Produtos.</div>';
   else{h+='<div class="scroll"><table class="pt"><thead><tr><th>Produto</th><th>Preço base</th>'+TIERS.map(function(q){return '<th>'+q+' un.</th>';}).join("")+'</tr></thead><tbody>';
-    vp.forEach(function(i){var p=S.products[i];h+='<tr><td>'+esc(p.name)+(p.code?' <span class="muted">('+esc(p.code)+')</span>':'')+'</td><td>'+brl(num(p.price))+'</td>'+
+    vp.forEach(function(i){var p=S.products[i];h+='<tr><td><div style="display:flex;align-items:center;gap:4px"><button class="btn del" data-act="rmp" data-lbl="🗑️" data-i="'+i+'" title="Apagar produto" style="font-size:16px;padding:4px 6px;flex:none">🗑️</button><span>'+esc(p.name)+(p.code?' <span class="muted">('+esc(p.code)+')</span>':'')+'</span></div></td><td>'+brl(num(p.price))+'</td>'+
       TIERS.map(function(q,t){var d=num(p.disc[t]);return '<td>'+brl(unit(p,t))+(d?'<small>-'+pc(d)+'</small>':'')+'</td>';}).join("")+'</tr>';});
     h+='</tbody></table></div>';}
   h+='<label>Observações da tabela (validade, frete, condições...)</label><textarea data-k="s.tableNote" placeholder="Ex.: Tabela válida até 31/12. Pedido mínimo de 10 unidades. Sinal de 30% no fechamento.">'+esc(S.tableNote||"")+'</textarea></div>'+
@@ -251,8 +251,8 @@ root.addEventListener("click",function(e){
   if(b.dataset.tab){setTab(b.dataset.tab);return;}
   var a=b.dataset.act,i=+b.dataset.i,j=+b.dataset.j;
   if(a==="addp"&&S.products.length<MAXP){S.products.push(newProduct());persist();renderProdutos();var cs=document.querySelectorAll("#s-produtos .card");cs[cs.length-1].scrollIntoView({behavior:"smooth"});}
-  else if(a==="rmp"){var nm=S.products[i].name||("produto "+(i+1));if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Confirmar exclusão";setTimeout(function(){if(b.isConnected){b.dataset.sure="";b.textContent="Excluir";}},3000);return;}
-    S.products.splice(i,1);O.items.forEach(function(it){if(it.p!==""){var n=+it.p;if(n===i)it.p="";else if(n>i)it.p=n-1;}});persist();renderProdutos();renderPedido();toast(nm+" excluído");}
+  else if(a==="rmp"){var nm=S.products[i].name||("produto "+(i+1));if(b.dataset.sure!=="1"){b.dataset.sure="1";var lbl=b.dataset.lbl||"Excluir";b.textContent=b.dataset.lbl?"Apagar?":"Confirmar exclusão";setTimeout(function(){if(b.isConnected){b.dataset.sure="";b.textContent=lbl;}},3000);return;}
+    S.products.splice(i,1);O.items.forEach(function(it){if(it.p!==""){var n=+it.p;if(n===i)it.p="";else if(n>i)it.p=n-1;}});if(!S.products.length)S.products.push(newProduct());persist();renderProdutos();renderTabela();renderPedido();toast(nm+" apagado");}
   else if(a==="addi"){O.items.push({p:"",t:0});persist();renderItems();}
   else if(a==="rmi"){O.items.splice(j,1);persist();renderItems();}
   else if(a==="novo"){if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Toque de novo para limpar o pedido";setTimeout(function(){if(b.isConnected){b.dataset.sure="";b.textContent="Novo pedido (limpar)";}},3000);return;}O=newOrder();persist();renderPedido();toast("Pedido limpo");}
