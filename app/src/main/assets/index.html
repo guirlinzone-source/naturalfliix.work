@@ -46,7 +46,7 @@ textarea{min-height:64px;resize:vertical}
 .pctwrap{position:relative}.pctwrap:after{content:"%";position:absolute;right:8px;top:50%;transform:translateY(-50%);color:var(--mut);font-size:13px;pointer-events:none}
 .pctwrap input{padding-right:22px}
 .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
-table.pt{border-collapse:collapse;width:100%;min-width:640px;font-size:13px}
+table.pt{border-collapse:collapse;width:100%;min-width:720px;font-size:13px}
 table.pt th{background:var(--navy);color:#fff;padding:8px 6px;text-align:center;white-space:nowrap}
 table.pt th:first-child{text-align:left}
 table.pt td{border-bottom:1px solid var(--line);padding:7px 6px;text-align:center;white-space:nowrap}
@@ -79,14 +79,14 @@ table.pt td small{display:block;color:var(--acc2);font-weight:600;font-size:11px
 <script id="app-js">
 (function(){
 "use strict";
-var TIERS=[10,20,40,60,80,100], MAXP=10, SINAL=0.30, LS="tabela-precos-v1";
+var TIERS=[1,10,20,40,60,80,100], MAXP=10, SINAL=0.30, LS="tabela-precos-v1";
 var JSPDF_URL="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
 var AT_URL="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js";
 
 function today(){var d=new Date();return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2);}
-function newProduct(){return {name:"",code:"",price:"",disc:["","","","","",""]};}
+function newProduct(){return {name:"",code:"",price:"",disc:["","","","","","",""]};}
 function blank(){return {company:{name:"",cnpj:"",phone:"",email:"",address:"",logo:""},tableNote:"",products:[newProduct()],savedAt:0};}
-function newOrder(){return {numero:"",data:today(),fantasia:"",razao:"",cnpj:"",endereco:"",cidade:"",telefone:"",obs:"",items:[{p:"",t:0}]};}
+function newOrder(){return {numero:"",data:today(),fantasia:"",razao:"",cnpj:"",endereco:"",cidade:"",telefone:"",obs:"",items:[{p:"",t:1}],v:2};}
 
 function num(s){if(typeof s==="number")return s;s=String(s==null?"":s).trim().replace(/[^\d,.\-]/g,"");if(s.indexOf(",")>=0)s=s.replace(/\./g,"").replace(",",".");var n=parseFloat(s);return isFinite(n)?n:0;}
 function brl(v){return (isFinite(v)?v:0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});}
@@ -101,10 +101,16 @@ var S=null,O=newOrder();
 try{S=JSON.parse(document.getElementById("state").textContent);}catch(e){S=null;}
 if(!S||!S.products)S=blank();
 try{var d=JSON.parse(localStorage.getItem(LS)||"null");
-  if(d){if(d.cfg&&d.cfg.products&&(d.cfg.savedAt||0)>=(S.savedAt||0))S=d.cfg; if(d.order)O=Object.assign(newOrder(),d.order);}
+  if(d){if(d.cfg&&d.cfg.products&&(d.cfg.savedAt||0)>=(S.savedAt||0))S=d.cfg; if(d.order)O=Object.assign(newOrder(),{v:0},d.order);}
 }catch(e){}
 var LSO=LS+"-pedidos",ORD=[];
 try{ORD=JSON.parse(localStorage.getItem(LSO)||"[]")||[];}catch(e){ORD=[];}
+/* migração: faixa de 1 unidade incluída antes de 10 (dados antigos tinham 6 faixas) */
+function migProd(p){if(p&&Array.isArray(p.disc)&&p.disc.length===6)p.disc.unshift("");}
+function migOrder(o){if(o&&!o.v){(o.items||[]).forEach(function(it){it.t=(+it.t||0)+1;});o.v=2;}}
+(S.products||[]).forEach(migProd);migOrder(O);
+var migO=false;ORD.forEach(function(r){if(r.order&&!r.order.v){migOrder(r.order);migO=true;}});
+if(migO)try{localStorage.setItem(LSO,JSON.stringify(ORD));}catch(e){}
 function persistOrders(){try{localStorage.setItem(LSO,JSON.stringify(ORD));return true;}catch(e){return false;}}
 if(S.locked)delete S.locked;
 function persist(){try{localStorage.setItem(LS,JSON.stringify({cfg:S,order:O}));}catch(e){}}
@@ -253,7 +259,7 @@ root.addEventListener("click",function(e){
   if(a==="addp"&&S.products.length<MAXP){S.products.push(newProduct());persist();renderProdutos();var cs=document.querySelectorAll("#s-produtos .card");cs[cs.length-1].scrollIntoView({behavior:"smooth"});}
   else if(a==="rmp"){var nm=S.products[i].name||("produto "+(i+1));if(b.dataset.sure!=="1"){b.dataset.sure="1";var lbl=b.dataset.lbl||"Excluir";b.textContent=b.dataset.lbl?"Apagar?":"Confirmar exclusão";setTimeout(function(){if(b.isConnected){b.dataset.sure="";b.textContent=lbl;}},3000);return;}
     S.products.splice(i,1);O.items.forEach(function(it){if(it.p!==""){var n=+it.p;if(n===i)it.p="";else if(n>i)it.p=n-1;}});if(!S.products.length)S.products.push(newProduct());persist();renderProdutos();renderTabela();renderPedido();toast(nm+" apagado");}
-  else if(a==="addi"){O.items.push({p:"",t:0});persist();renderItems();}
+  else if(a==="addi"){O.items.push({p:"",t:1});persist();renderItems();}
   else if(a==="rmi"){O.items.splice(j,1);persist();renderItems();}
   else if(a==="novo"){if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Toque de novo para limpar o pedido";setTimeout(function(){if(b.isConnected){b.dataset.sure="";b.textContent="Novo pedido (limpar)";}},3000);return;}O=newOrder();persist();renderPedido();toast("Pedido limpo");}
   else if(a==="rmlogo"){S.company.logo="";persist();renderEmpresa();renderHeader();}
@@ -310,7 +316,7 @@ function exportBackup(){var data=JSON.stringify(S,null,1),fn="backup-tabela-prec
   if(DL){DL.save({filename:fn,data:data}).then(function(){toast("Backup salvo ✔");}).catch(function(err){if(err&&err.code!=="declined")toast("Não foi possível salvar o backup.");});return;}
   localDownload(new Blob([data],{type:"application/json"}),fn);}
 function importBackup(f){if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(!d||!Array.isArray(d.products))throw 0;
-  d.products=d.products.slice(0,MAXP).map(function(p){return {name:p.name||"",code:p.code||"",price:p.price||"",disc:(p.disc||[]).concat(["","","","","",""]).slice(0,6)};});
+  d.products=d.products.slice(0,MAXP).map(function(p){return {name:p.name||"",code:p.code||"",price:p.price||"",disc:(function(a){a=(a||[]).slice();if(a.length===6)a.unshift("");return a.concat(["","","","","","",""]).slice(0,7);})(p.disc)};});
   d.company=Object.assign(blank().company,d.company||{});S=d;persist();renderAll();toast("Backup restaurado ✔");}catch(e){toast("Arquivo de backup inválido.");}};r.readAsText(f);}
 
 /* ---------- PDF ---------- */
@@ -337,7 +343,7 @@ function pdfTabela(){
   doc.autoTable({startY:y,head:[["Produto","Preço base"].concat(TIERS.map(function(q){return q+" un.";}))],
     body:vp.map(function(i){var p=S.products[i];return [p.name+(p.code?"\nRef.: "+p.code:""),brl(num(p.price))].concat(TIERS.map(function(q,t){var d=num(p.disc[t]);return brl(unit(p,t))+(d?"\n(-"+pc(d)+")":"");}));}),
     theme:"grid",styles:{fontSize:9.5,cellPadding:2.6,valign:"middle",halign:"center",lineColor:[214,220,230]},
-    headStyles:{fillColor:[20,33,61],textColor:255,fontStyle:"bold"},columnStyles:{0:{halign:"left",fontStyle:"bold",cellWidth:62}},
+    headStyles:{fillColor:[20,33,61],textColor:255,fontStyle:"bold"},columnStyles:{0:{halign:"left",fontStyle:"bold",cellWidth:52}},
     alternateRowStyles:{fillColor:[246,248,252]},margin:{left:14,right:14}});
   var fy=doc.lastAutoTable.finalY+6;doc.setFontSize(8.5);doc.setTextColor(85,92,110);
   doc.text("Valores por unidade, já com o desconto da faixa de quantidade. Sinal de 30% no fechamento do pedido.",14,fy);
